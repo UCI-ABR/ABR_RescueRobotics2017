@@ -1,0 +1,74 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:orientation="horizontal" >
+
+    <org.opencv.android.JavaCameraView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/color_blob_detection_activity_surface_view" />
+    
+    <TextView
+        android:id="@+id/distanceText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor = "#FFF"
+        android:paddingLeft="50dp"
+        android:text="@string/sonar2" />
+    
+    <TextView
+        android:id="@+id/bearingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor = "#FFF"
+        android:paddingLeft="200dp"
+        android:text="@string/sonar2" />
+    
+    <TextView
+        android:id="@+id/headingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor = "#FFF"
+        android:paddingLeft="350dp"
+        android:text="@string/sonar2" />
+    
+    <Button
+        android:id="@+id/btnAuto"
+        android:layout_width="@dimen/command_button_size"
+        android:layout_height="@dimen/command_button_size"
+        android:layout_margin="@dimen/command_button_margin"
+        android:background="@drawable/button_auto"
+        android:layout_alignParentBottom="true"
+		android:layout_alignParentRight="true"/>
+
+    <TextView
+        android:id="@+id/sonar1"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:paddingLeft="50dp"
+        android:text="@string/sonar2"
+        android:textColor="#FFF" />
+    
+    <TextView
+        android:id="@+id/sonar2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:paddingLeft="200dp"
+        android:text="@string/sonar2"
+        android:textColor="#FFF" />
+    
+    <TextView
+        android:id="@+id/sonar3"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:paddingLeft="350dp"
+        android:text="@string/sonar2"
+        android:textColor="#FFF" />
+</RelativeLayout>
