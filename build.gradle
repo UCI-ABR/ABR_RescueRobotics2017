@@ -6,15 +6,16 @@ buildscript {
   }
 
   dependencies {
-    classpath 'com.android.tools.build:gradle:2.1.0'
+    classpath 'com.android.tools.build:gradle:2.3.3'
   }
 }
 
 android {
-  buildToolsVersion "22.0.1"
+  buildToolsVersion '25.0.0'
   compileSdkVersion 23
   defaultConfig {
-    applicationId "abr.main.rescuerobotics2016"
+    applicationId "abr.main.rescuerobotics2017"
+    multiDexEnabled true
   }
 }
 
@@ -24,8 +25,10 @@ dependencies {
   compile 'com.github.ytai.ioio:IOIOLibAndroidAccessory:5.05'
   compile 'com.github.ytai.ioio:IOIOLibAndroidDevice:5.05'
   compile 'org.opencv:OpenCV-Android:3.1.0'
-  compile 'com.google.android.gms:play-services:9.0.2'
+  //compile 'com.google.android.gms:play-services:9.0.2'
+  compile 'com.google.android.gms:play-services:+'
   compile 'com.google.zxing:core:3.2.1'
+  compile 'com.android.support:multidex:1.0.0'
 }
 
 repositories {

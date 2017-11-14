@@ -15,10 +15,10 @@
  limitations under the License.
  -->
 <resources>
-  <string name="app_name">RescueRobotics2016</string>
+  <string name="app_name">RescueRobotics2017</string>
   <string name="hello_world">Hello world!</string>
   <string name="menu_settings">Settings</string>
-  <string name="title_activity_main">RescueRobotics2016</string>  
+  <string name="title_activity_main">RescueRobotics2017</string>
   <string name="sonar2">Sonar2:</string>  
    
   <string name="app_picker_name">Applications</string>
@@ -144,4 +144,9 @@
   <string name="result_wifi">Found WLAN Configuration</string>
   <string name="sbc_name">Google Book Search</string>
   <string name="wifi_changing_network">Requesting connection to network\u2026</string>
+  <string-array name="cd_arrays">
+    <item>CARLorado 6WD Mode</item>
+    <item>Rover 4WD Mode</item>
+  </string-array>
+  <string name="cd_prompt">Display image type</string>
 </resources>

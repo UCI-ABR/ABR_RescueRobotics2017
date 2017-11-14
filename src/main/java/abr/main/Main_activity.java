@@ -51,6 +51,7 @@ import ioio.lib.util.IOIOLooper;
 import ioio.lib.util.IOIOLooperProvider;
 import ioio.lib.util.android.IOIOAndroidApplicationHelper;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -60,7 +61,6 @@ import android.media.AudioManager;
 import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.SystemClock;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -71,8 +71,6 @@ import android.view.WindowManager;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.Toast;
-import abr.main.R;
 
 public class Main_activity extends Activity implements IOIOLooperProvider, SensorEventListener, ConnectionCallbacks, OnConnectionFailedListener,
 		CvCameraViewListener2 // implements IOIOLooperProvider: from IOIOActivity
@@ -85,7 +83,7 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	int obstacleTurningSpeed;
 	
 	// ioio variables
-	IOIO_thread m_ioio_thread;
+	IOIO_thread_rover_4wd m_ioio_thread;
 	
 	//blob detection variables
 	private CameraBridgeViewBase mOpenCvCameraView;
@@ -101,7 +99,7 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	//variables for logging
 	private Sensor mGyroscope;
 	private Sensor mGravityS;
-	float[] mGravityV;
+	float[] mGravity;
 	float[] mGyro;
 
 	//location variables
@@ -117,7 +115,7 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	//variables for compass
 	private SensorManager mSensorManager;
 	private Sensor mCompass, mAccelerometer;
-	float[] mGravity;
+	float[] mAcc;
 	float[] mGeomagnetic;
 	public float heading = 0;
 	public float bearing;
@@ -145,14 +143,17 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	Location centerLocation;
 	Location topLeft;
 	Location bottomRight;
-	int gridSize = 2;
+	int gridSize = 4;//5;
 	int sendCounter = 0;
 	int destRow = 0;
 	int destCol = 0;
+	int gridNum = 1; // added to search for buckets in grid order
 	
 	//timers
 	int pauseCounter = 0;
 	int backCounter = 0;
+	int backObstacleLeftCounter = 0;
+	int backObstacleRightCounter = 0;
 	Long startTime;
 	Long currTime;
 	
@@ -220,21 +221,46 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	    numSweeps = 0;
 	    occupancyGrid = new int[gridSize][gridSize];
 	    topLeft = new Location(""); //define the topLeft corner of field
-	    topLeft.setLatitude(33.6469238);
-	    topLeft.setLongitude(-117.8430502);
-	    bottomRight = new Location(""); //define the bottomRight corner of field
-	    bottomRight.setLatitude(33.6468030);
-	    bottomRight.setLongitude(-117.8429104);
+		//topLeft.setLatitude(33.643148);
+		//topLeft.setLongitude(-117.826472);
+		//topLeft.setLatitude(33.643250);
+		//topLeft.setLongitude(-117.826453);
+		//topLeft.setLatitude(33.647414); // SS
+		//topLeft.setLongitude(-117.839141); // SS
+		//topLeft.setLatitude(33.644298); // ICS
+		//topLeft.setLongitude(-117.842189); // ICS
+		//topLeft.setLatitude(33.642930); // PV
+		//topLeft.setLongitude(-117.833742); // PV
+		//topLeft.setLatitude(33.643253);
+		//topLeft.setLongitude(-117.826558);
+		topLeft.setLatitude(33.642941); // green
+		topLeft.setLongitude(-117.826467); // green
+		bottomRight = new Location(""); //define the bottomRight corner of field
+		//bottomRight.setLatitude(33.643051);
+		//bottomRight.setLongitude(-117.826044);
+		//bottomRight.setLatitude(33.643221);
+		//bottomRight.setLongitude(-117.826568);
+		//bottomRight.setLatitude(33.647575); // SS
+		//bottomRight.setLongitude(-117.839500); // SS
+		//bottomRight.setLatitude(33.644343); // ICS
+		//bottomRight.setLongitude(-117.841332); // ICS
+		//bottomRight.setLatitude(33.642941); // PV
+		//bottomRight.setLongitude(-117.826467); // PV
+		bottomRight.setLatitude(33.642867); // green
+		bottomRight.setLongitude(-117.826853); // green
 	    centerLocation = new Location(""); //calculate the center point of the field
 	    centerLocation.setLatitude((bottomRight.getLatitude()+topLeft.getLatitude())/2);
 	    centerLocation.setLongitude((bottomRight.getLongitude()+topLeft.getLongitude())/2);
 	    Log.i("rescue robotics","center,lat:"+centerLocation.getLatitude()+"lon:"+centerLocation.getLongitude());
 	    gridLocations = calculateGridLocations(topLeft, bottomRight, gridSize);
+		gridNum = 1;
 	    
 	    //set destination
-	    destRow = (int)Math.floor(Math.random()*gridSize); 
-	    destCol = (int)Math.floor(Math.random()*gridSize);
-	    dest_loc = gridLocations[destRow][destCol];
+	    //destRow = (int)Math.floor(Math.random()*gridSize);
+	    //destCol = (int)Math.floor(Math.random()*gridSize);
+	    //dest_loc = gridLocations[destRow][destCol];
+		dest_loc = getGridLocations(gridNum);
+		gridNum++;
 		
 		//set up location listener
 		mLocationListener = new LocationListener() {
@@ -295,13 +321,13 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	    
 	    //set speeds. adjust accordingly for your robot
 	    if(redRobot){
-	    	forwardSpeed = 180;
-	    	turningSpeed = 100;
-	    	obstacleTurningSpeed = 100;
+	    	forwardSpeed = 120;//180;
+	    	turningSpeed = 100;//90;//80;//70;//100;
+	    	obstacleTurningSpeed = 100;//90;//75;//55;//50;//70;//100;
 	    } else {
-	    	forwardSpeed = 110 ;
-	    	turningSpeed = 80;
-	    	obstacleTurningSpeed = 90;
+	    	forwardSpeed = 80;//110 ;
+	    	turningSpeed = 50;//80;
+	    	obstacleTurningSpeed = 30;//45;//60;//90;
 	    }
 	}
 	//Method necessary for google play location services
@@ -347,27 +373,27 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	@Override
 	public final void onSensorChanged(SensorEvent event) {
 		 if(m_ioio_thread != null){
-			  setText("sonar1: "+m_ioio_thread.get_sonar1_reading(), sonar1Text);
-			  setText("sonar2: "+m_ioio_thread.get_sonar2_reading(), sonar2Text);
-			  setText("sonar3: "+m_ioio_thread.get_sonar3_reading(), sonar3Text);
+			  setText("ir1: "+m_ioio_thread.get_ir1_reading(), sonar1Text);
+			  setText("ir2: "+m_ioio_thread.get_ir2_reading(), sonar2Text);
+			  setText("ir3: "+m_ioio_thread.get_ir3_reading(), sonar3Text);
 			  setText("distance: "+distance, distanceText);
 			  setText("bearing: "+bearing, bearingText);
 			  setText("heading: "+heading, headingText);
 		  }
 		 
 		  if (event.sensor.getType() == Sensor.TYPE_GRAVITY)
-			  mGravityV = event.values;
+			  mGravity = event.values;
 		  if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE)
 			  mGyro = event.values;
 		  if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
-		      mGravity = event.values;
+		      mAcc = event.values;
 		  if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
 		      mGeomagnetic = event.values;
-		  if (mGravity != null && mGeomagnetic != null) {
+		  if (mAcc != null && mGeomagnetic != null) {
 			  float[] temp = new float[9];
 			  float[] R = new float[9];
 			  //Load rotation matrix into R
-			  SensorManager.getRotationMatrix(temp, null, mGravity, mGeomagnetic);
+			  SensorManager.getRotationMatrix(temp, null, mAcc, mGeomagnetic);
 			  //Remap to camera's point-of-view
 			  SensorManager.remapCoordinateSystem(temp, SensorManager.AXIS_X, SensorManager.AXIS_Z, R);
 			  //Return the orientation values
@@ -410,9 +436,10 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 			curr_lon = curr_loc.getLongitude();
 			String info = text +" ,Lat:"+curr_lat+" ,Lon:"+curr_lon+" ,Time:"+time;
 			try {
-			    File newFolder = new File(Environment.getExternalStorageDirectory(), "RescueRobotics");
+			    File newFolder = new File(Environment.getExternalStorageDirectory(), "RescueRobotics_Heat2");
+				//File newFolder = new File(Environment.getDataDirectory(), "RescueRobotics_Heat1");
 			    if (!newFolder.exists()) {
-			        newFolder.mkdir();
+			        newFolder.mkdirs();
 			    }
 			    try {
 			        File file = new File(newFolder, time + ".txt");
@@ -448,6 +475,68 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	    Log.i("rescue robotics",text);
 
 		return text;
+	}
+
+	//Log coordinates to phone
+	public String log_coordinates() {
+		String text;
+		text = "Bucket";
+		Calendar calendar = Calendar.getInstance();
+		java.util.Date now = calendar.getTime();
+		java.sql.Timestamp currentTimestamp = new java.sql.Timestamp(now.getTime());
+		String time = currentTimestamp.toString();
+		curr_lat = curr_loc.getLatitude();
+		curr_lon = curr_loc.getLongitude();
+		String info = text + ", Lat:" + curr_lat + ", Lon:" + curr_lon + ", Time:" + time;
+		try {
+			File newFolder = new File(Environment.getExternalStorageDirectory(), "RescueRobotics_Heat2");
+			if (!newFolder.exists()) {
+				newFolder.mkdirs();
+				Log.i("app.main","Folder opened");
+			}
+			try {
+				File file = new File(newFolder, time + ".txt");
+				file.createNewFile();
+				FileOutputStream fos = new FileOutputStream(file);
+				try {
+					byte[] b = info.getBytes();
+					fos.write(b);
+					fos.close();
+					ToneGenerator toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+					toneG.startTone(ToneGenerator.TONE_CDMA_PIP, 200);
+					Log.i("app.main","File written");
+				} catch (IOException e) {
+					Log.e("app.main", "Couldn't write to SD");
+				}
+			} catch (Exception ex) {
+				Log.e("app.main", "Couldn't write to SD");
+			}
+		} catch (Exception e) {
+			Log.e("app.main", "Couldn't write to SD");
+		}
+		Log.i("rescue robotics", text);
+		ToneGenerator toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
+		toneG.startTone(ToneGenerator.TONE_CDMA_PIP, 200);
+		return text;
+
+	}
+
+	public Location getGridLocations(int numGrid) {
+		Location gridLoc = new Location("");
+		if (numGrid <= gridSize && numGrid > 0) {
+			gridLoc = gridLocations[0][numGrid-1];
+		} else if (numGrid <= 2*gridSize && numGrid > gridSize) {
+			gridLoc = gridLocations[1][2*gridSize-numGrid];
+		} else if (numGrid <= 3*gridSize && numGrid > 2*gridSize) {
+			gridLoc = gridLocations[2][numGrid-2*gridSize-1];
+		} else if (numGrid <= 4*gridSize && numGrid > 3*gridSize) {
+			gridLoc = gridLocations[3][4*gridSize-numGrid];
+		//} else if (numGrid <= 5*gridSize && numGrid > 4*gridSize) {
+		//	gridLoc = gridLocations[4][numGrid-4*gridSize-1];
+		} else {
+			gridLoc = gridLocations[(int)Math.floor(Math.random()*gridSize)][(int)Math.floor(Math.random()*gridSize)];
+		}
+		return gridLoc;
 	}
 	
 	//Called whenever activity resumes from pause
@@ -495,8 +584,19 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 		CONTOUR_COLOR = new Scalar(255, 0, 0, 255);
 
 		//To set color, find HSV values of desired color and convert each value to 1-255 scale
+		// H: 0-36 out of 360, S: 68-100 out of 100, V: 68-100 out of 100
+		// H: 0-26 out of 255, S: 173-255 out of 255, V: 173-255 out of 255
+		// middle: H: 13 out of 255, S: 214 out of 255, V: 214 out of 255
+		// range: H: 13 out of 255, S: 41 out of 255, V: 41 out of 255
 		//mDetector.setHsvColor(new Scalar(7, 196, 144)); // red
-		mDetector.setHsvColor(new Scalar(253.796875,222.6875,195.21875));
+		//mDetector.setHsvColor(new Scalar(253.796875,222.6875,195.21875)); // orange on a sunny day
+		//float[] hsv = new float[3];
+		//Color.RGBToHSV(240,11,0,hsv);
+		//Log.i("hahaha","hsv:"+hsv[0]+","+hsv[1]+","+hsv[2]);
+		//mDetector.setHsvColor(new Scalar(10,250,255));
+		//mDetector.setHsvColor(new Scalar(17,150,170));
+		//mDetector.setHsvColor(new Scalar(18,250,255));
+		mDetector.setHsvColor(new Scalar(13,214,214));
 	}
 	//Called when camera view stops
 	public void onCameraViewStopped() {
@@ -504,6 +604,7 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	}
 	//Called at every camera frame. Main controls of the robot movements are in this function
 	public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
+		Log.i("hahaha","area:"+(mDetector.getMaxArea()/(mDetector.getCenterX()*mDetector.getCenterY()*4)) );
 		/*
 		if(sendCounter > 100){
 			sendGrid();
@@ -528,35 +629,67 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 		mSpectrum.copyTo(spectrumLabel);
 
 		// majority of control exists here
-		if (autoMode && (System.currentTimeMillis()-startTime < 600000)) { // only move if autoMode is on and time under time limit
-			if(System.currentTimeMillis()-startTime > 6000000)
+		if (autoMode && (System.currentTimeMillis()-startTime < 900000)) { // only move if autoMode is on and time under time limit
+			if(System.currentTimeMillis()-startTime > 9000000)
 				autoMode = false;
-			scan(mRgba);
+			//scan(mRgba);
 			if(backCounter > 0){
 				m_ioio_thread.set_steering(1500);
-				m_ioio_thread.set_speed(1500-forwardSpeed);
+				m_ioio_thread.set_speed(1500-forwardSpeed/2);//m_ioio_thread.set_speed(1500-forwardSpeed);
 				panVal = 1500;
 				tiltVal = 1500;
-				m_ioio_thread.set_pan(panVal);
-				m_ioio_thread.set_tilt(tiltVal);
 				backCounter--;
 				if (backCounter == 0)
+					pauseCounter = 5;
+			}
+			else if(backObstacleLeftCounter > 0){
+				panVal = 1500;
+				tiltVal = 1500;
+				if (backObstacleLeftCounter > 10) {
+					m_ioio_thread.set_speed(1500-obstacleTurningSpeed);
+					m_ioio_thread.set_steering(1500);
+				} else {
+					m_ioio_thread.set_speed(1500-obstacleTurningSpeed);
+					m_ioio_thread.set_steering(1600);
+				}
+				backObstacleLeftCounter--;
+				if (backObstacleLeftCounter == 0)
+					pauseCounter = 5;
+			}
+			else if(backObstacleRightCounter > 0){
+				panVal = 1500;
+				tiltVal = 1500;
+				if (backObstacleRightCounter > 10) {
+					m_ioio_thread.set_speed(1500-obstacleTurningSpeed);
+					m_ioio_thread.set_steering(1500);
+				} else {
+					m_ioio_thread.set_speed(1500-obstacleTurningSpeed);
+					m_ioio_thread.set_steering(1400);
+				}
+				backObstacleRightCounter--;
+				if (backObstacleRightCounter == 0)
 					pauseCounter = 5;
 			}
 			else if(pauseCounter > 0){
 				m_ioio_thread.set_speed(1500);
 				m_ioio_thread.set_steering(1500);
-				panVal = 1500;
-				tiltVal = 1500;
-				m_ioio_thread.set_pan(panVal);
-				m_ioio_thread.set_tilt(tiltVal);
 				pauseCounter--;
-				if (pauseCounter == 0){ // change destination
-					if(System.currentTimeMillis()-startTime > 570000){ // go to center at 9:30
+				if (pauseCounter == 0) {
+					if(System.currentTimeMillis()-startTime > 870000){ // go to center at 9:30, might have to change this
 						dest_loc = centerLocation;
+						m_ioio_thread.set_speed(1500+forwardSpeed);
+						m_ioio_thread.set_steering(1500);
+						//Log coordinates if the area of the orange bucket is greater than .01 of the screen
+						if(m_ioio_thread != null && (m_ioio_thread.get_ir2_reading() < 17
+								|| m_ioio_thread.get_ir1_reading() < 17 || m_ioio_thread.get_ir3_reading() < 17
+								|| (mDetector.getMaxArea()/(mDetector.getCenterX()*mDetector.getCenterY()*4) > .12))) {
+							Log.v("app.main", "obstacle reached");
+							log_coordinates();
+
+						}
 					}
 					else {
-						occupancyGrid[destRow][destCol]++;
+						//occupancyGrid[destRow][destCol]++;
 						/*
 						int minVal = Integer.MAX_VALUE;
 						int minRow = 0;
@@ -573,31 +706,48 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 						}
 						dest_loc = gridLocations[minRow][minCol];
 						*/
-						destRow = (int)Math.floor(Math.random()*gridSize); 
-					    destCol = (int)Math.floor(Math.random()*gridSize);
-					    dest_loc = gridLocations[destRow][destCol];
+						//destRow = (int)Math.floor(Math.random()*gridSize);
+					    //destCol = (int)Math.floor(Math.random()*gridSize);
+					    //dest_loc = gridLocations[destRow][destCol];
+						Log.v("app.main", "pause == 0");
+						m_ioio_thread.set_speed(1500+forwardSpeed);
+						m_ioio_thread.set_steering(1500);
+						dest_loc = getGridLocations(gridNum);
+						gridNum++;
+
 					}
 				}
 			}
-			else if(m_ioio_thread.get_sonar2_reading() < 25 && m_ioio_thread != null) {
-				if(curr_loc.distanceTo(dest_loc) <= 7 && m_ioio_thread.get_sonar2_reading() < 20 && (mDetector.getMaxArea()/(mDetector.getCenterX()*mDetector.getCenterY()*4) > .01)) //bucket reached
-					backCounter = 5;
-				else{ //avoiding obstacle
-					if(m_ioio_thread.get_sonar1_reading() < m_ioio_thread.get_sonar3_reading()){ //obstacle on left
-						m_ioio_thread.set_speed(1500+forwardSpeed);
-						m_ioio_thread.set_steering(1500+obstacleTurningSpeed);
+			else if(m_ioio_thread != null && (m_ioio_thread.get_ir2_reading() < 17 || m_ioio_thread.get_ir1_reading() < 17
+					|| m_ioio_thread.get_ir3_reading() < 17 || (mDetector.getMaxArea()/(mDetector.getCenterX()*mDetector.getCenterY()*4) > .12))) { //might have to change this value
+				//if(curr_loc.distanceTo(dest_loc) <= 25 && m_ioio_thread.get_ir2_reading() < 30 && (mDetector.getMaxArea()/(mDetector.getCenterX()*mDetector.getCenterY()*4) > .01)) //bucket reached
+				if(curr_loc.distanceTo(dest_loc) <= 70) { //bucket reached
+					Log.v("app.main", "bucket reached");
+					//backCounter = 5;
+					log_coordinates();
+					if(m_ioio_thread.get_ir1_reading() < m_ioio_thread.get_ir3_reading()) { //bucket on left
+						Log.v("app.main", "bucket on left");
+						backObstacleLeftCounter = 18;
+					} else { //bucket on right
+						Log.v("app.main", "bucket on right");
+						backObstacleRightCounter = 18;
+					}
+				}else{ //avoiding obstacle
+					if(m_ioio_thread.get_ir1_reading() < m_ioio_thread.get_ir3_reading()){ //obstacle on left
+						Log.v("app.main", "obstacle on left");
+						backObstacleLeftCounter = 18;
+						//m_ioio_thread.set_speed(1500-obstacleTurningSpeed);
+						//m_ioio_thread.set_steering(1400);
 					} else { //obstacle on right
-						m_ioio_thread.set_speed(1500+forwardSpeed);
-						m_ioio_thread.set_steering(1500-obstacleTurningSpeed);
+						Log.v("app.main", "obstacle on right");
+						backObstacleRightCounter = 18;
+						//m_ioio_thread.set_speed(1500-obstacleTurningSpeed);
+						//m_ioio_thread.set_steering(1600);
 					}
 						
 				}
-				panVal = 1500;
-				tiltVal = 1500;
-				m_ioio_thread.set_pan(panVal);
-				m_ioio_thread.set_tilt(tiltVal);
 			}
-			else if(curr_loc.distanceTo(dest_loc) > 7) { // follow compass
+			else if(curr_loc.distanceTo(dest_loc) > 70) { // follow compass, might have to increase this to 10
 				float bearingMod = bearing%360;
 				float headingMod = heading%360;
 				
@@ -614,77 +764,31 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 					else
 						m_ioio_thread.set_steering(1500+turningSpeed);
 				}
-				panVal = 1500;
-				tiltVal = 1500;
-				m_ioio_thread.set_pan(panVal);
-				m_ioio_thread.set_tilt(tiltVal);
 			} else { // follow orange bucket
 				double momentX = mDetector.getMomentX();
 				double momentY = mDetector.getMomentY();
-				
+				int centerThreshold = (int) (.333 * mDetector.getCenterX());
 				if(mDetector.blobsDetected() == 0){
-					Log.i("rescue robotics","frame");
-					if(panningRight){
-						m_ioio_thread.set_pan(panVal+=30);
-						if(panVal >= 2400)
-							panningRight = false;
-					} else {
-						m_ioio_thread.set_pan(panVal-=30);
-						if(panVal <= 600)
-							panningRight = true;
-					}
-					tiltVal = 1500;
-					m_ioio_thread.set_tilt(1500);
-				} else {
-					panInc = 40 + (int)Math.exp(.03*Math.abs(momentX));
-					if(momentX > 25){
-						m_ioio_thread.set_pan(panVal+=panInc);
-					}
-					else if(momentX < -25){
-						m_ioio_thread.set_pan(panVal-=panInc);
-					}
-					tiltInc = 20 + (int)Math.exp(.03*Math.abs(momentY));
-					if(momentY > 25){
-						m_ioio_thread.set_tilt(tiltVal+=tiltInc);
-					}
-					else if(momentY < -25){
-						m_ioio_thread.set_tilt(tiltVal-=tiltInc);
-					}
-				}
-				
-				if(panVal > 2400) panVal = 2400;
-				if(panVal < 600) panVal = 600;
-				if(tiltVal > 2000) tiltVal = 2000;
-				if(tiltVal < 1000) tiltVal = 1000;
-				
-				if (mDetector.blobsDetected() > 0) {
-					if(!(panVal < 1550 && panVal > 1450)){
-						m_ioio_thread.set_speed(1500+forwardSpeed);
-						if(panVal>1500){
-							m_ioio_thread.set_steering(1500+turningSpeed);
-						}
-						else {
-							m_ioio_thread.set_steering(1500-turningSpeed);
-						}
-					}
-					else{
-						m_ioio_thread.set_steering(1500);
-						m_ioio_thread.set_speed(1500+forwardSpeed);
-					}
-				} else  {
+					m_ioio_thread.set_speed(1600);
 					m_ioio_thread.set_steering(1500);
-					m_ioio_thread.set_speed(1500);
+				} else {
+					if(momentX > centerThreshold){
+						m_ioio_thread.set_speed(1600);
+						m_ioio_thread.set_steering(1600);
+					}
+					else if(momentX < -centerThreshold){
+						m_ioio_thread.set_speed(1600);
+						m_ioio_thread.set_steering(1400);
+					}
+					else {
+						m_ioio_thread.set_speed(1600);
+						m_ioio_thread.set_steering(1500);
+					}
 				}
-				
 			}
 		} else {
 			m_ioio_thread.set_speed(1500);
 			m_ioio_thread.set_steering(1500);
-			panVal = 1500;
-			tiltVal = 1500;
-			m_ioio_thread.set_pan(panVal);
-			m_ioio_thread.set_tilt(tiltVal);
-			
 		}
 
 		return mRgba;
@@ -797,15 +901,14 @@ public class Main_activity extends Activity implements IOIOLooperProvider, Senso
 	 * Create the {@link IOIO_thread}. Called by the
 	 * {@link IOIOAndroidApplicationHelper}. <br>
 	 * Function copied from original IOIOActivity.
-	 * 
-	 * @see {@link #get_ioio_data()} {@link #start_IOIO()}
+	 *
 	 * */
 	@Override
 	public IOIOLooper createIOIOLooper(String connectionType, Object extra) {
 		if (m_ioio_thread == null
 				&& connectionType
 						.matches("ioio.lib.android.bluetooth.BluetoothIOIOConnection")) {
-			m_ioio_thread = new IOIO_thread(this);
+			m_ioio_thread = new IOIO_thread_rover_4wd();
 			return m_ioio_thread;
 		} else
 			return null;
